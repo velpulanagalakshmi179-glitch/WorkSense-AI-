@@ -12,7 +12,11 @@
 ![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)
+## 🚀 Live Demo
 
+🌐 **Live Application:** https://worksense-ai-7bdi.onrender.com
+
+> Experience WorkSense AI online without any local setup.
 ---
 
 ## 📌 Overview
