@@ -14,6 +14,10 @@ def create_app():
     app.config["SESSION_PERMANENT"] = False
     Session(app)
 
+    # Initialize Database
+    from utils.db import init_db
+    init_db()
+
     # Register Blueprints
     from .blueprints.auth import auth_bp
     from .blueprints.dashboard import dashboard_bp
