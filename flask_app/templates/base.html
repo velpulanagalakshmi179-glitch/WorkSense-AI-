@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkSense AI - Enterprise Productivity</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2563EB;
+            --dark-navy: #0F172A;
+            --light-bg: #F8FAFC;
+            --white-card: #FFFFFF;
+            --border-color: #E2E8F0;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-bg);
+            color: #1E293B;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* Sidebar Styling */
+        .sidebar {
+            width: 280px;
+            background-color: var(--dark-navy);
+            color: #F1F5F9;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar h4 {
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .sidebar a {
+            color: #F1F5F9;
+            text-decoration: none;
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: block;
+        }
+        .sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+        .sidebar a.active {
+            background-color: var(--primary-blue);
+            font-weight: 600;
+        }
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+        .auth-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .auth-card {
+            background-color: var(--white-card);
+            border: 1px solid var(--border-color);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 18px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+        }
+        .btn-primary {
+            background-color: var(--primary-blue);
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 10px 20px;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #1D4ED8;
+            transform: translateY(-2px) scale(1.02);
+        }
+        .form-control {
+            border-radius: 12px;
+            padding: 12px 16px;
+        }
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+        }
+    </style>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+
+{% if session.get('logged_in') %}
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h4>WorkSense AI</h4>
+        <a href="{{ url_for('dashboard.index') }}" class="active">Executive Dashboard</a>
+        <!-- Placeholder for other routes -->
+        <a href="{{ url_for('meetings.index') }}">Meeting Intelligence</a>
+        <a href="{{ url_for('documents.index') }}">Document Intelligence</a>
+        <a href="{{ url_for('assistant.index') }}">AI Assistant</a>
+        <a href="{{ url_for('reports.index') }}">Reports & Meeting History</a>
+        
+        <div style="flex-grow: 1;"></div>
+        <a href="{{ url_for('auth.logout') }}" style="color: #F87171;">Logout</a>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+{% else %}
+    <!-- Auth Container -->
+    <div class="auth-container">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+            
+            {% block auth_content %}
+                <!-- Fallback to content block for auth templates -->
+                {% block content %}{% endblock %}
+            {% endblock %}
+        </div>
+    </div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

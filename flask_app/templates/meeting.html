@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">🗣️ Meeting Intelligence</h2>
+    <p class="text-muted">Summarizer · Key Highlights · Decision Extraction · Action Items · Deadline Detection</p>
+</div>
+
+<div id="alert-container"></div>
+
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4">
+        <form id="analyze-form">
+            <div class="mb-3">
+                <label for="meeting_title" class="form-label fw-bold">Meeting Title</label>
+                <input type="text" class="form-control" id="meeting_title" placeholder="e.g. Sprint 4 Planning" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="transcript_file" class="form-label fw-bold">Upload Transcript (Optional)</label>
+                <input class="form-control" type="file" id="transcript_file" accept=".txt">
+                <small class="text-muted">Currently supports .txt files.</small>
+            </div>
+
+            <div class="mb-4">
+                <label for="transcript" class="form-label fw-bold">Meeting Transcript / Notes</label>
+                <textarea class="form-control" id="transcript" rows="8" placeholder="Paste your meeting notes here..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100" id="analyze-btn">
+                <span id="btn-text">Analyze Meeting</span>
+                <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Loading Overlay / Spinner Message -->
+<div id="loading-message" class="text-center d-none mb-4">
+    <div class="spinner-border text-primary mb-2" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <h5 style="color: var(--dark-navy);">Analyzing Meeting... Please wait...</h5>
+</div>
+
+<!-- Results Section -->
+<div id="results-container" class="d-none">
+    <hr class="my-4">
+    
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-3">Detailed Summary</h4>
+            <p id="res-summary" style="white-space: pre-wrap;"></p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px;">
+                <div class="card-body p-4">
+                    <h4 class="fw-bold mb-3">Key Highlights</h4>
+                    <ul id="res-highlights" class="list-group list-group-flush"></ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px;">
+                <div class="card-body p-4">
+                    <h4 class="fw-bold mb-3">Decisions</h4>
+                    <ul id="res-decisions" class="list-group list-group-flush"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 18px;">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-3">Action Items</h4>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Owner</th>
+                            <th>Deadline</th>
+                            <th>Priority</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="res-action-items"></tbody>
+                </table>
+            </div>
+            <p id="no-action-items" class="text-muted d-none">No action items detected.</p>
+        </div>
+    </div>
+    
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border-left: 4px solid var(--primary-blue) !important;">
+                <div class="card-body p-4 text-center">
+                    <h5 class="fw-bold">Productivity Score</h5>
+                    <h1 class="display-4 fw-bold mt-3 text-primary" id="res-score"></h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Manager Insights</h5>
+                    <p id="res-insights"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// File Reader for Transcript
+document.getElementById('transcript_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('transcript').value = e.target.result;
+    };
+    reader.readAsText(file);
+});
+
+// Form Submit
+document.getElementById('analyze-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('meeting_title').value;
+    const transcript = document.getElementById('transcript').value;
+    
+    // UI Loading State
+    const btn = document.getElementById('analyze-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+    const loadingMessage = document.getElementById('loading-message');
+    const resultsContainer = document.getElementById('results-container');
+    const alertContainer = document.getElementById('alert-container');
+    
+    btn.disabled = true;
+    btnText.innerText = "Processing...";
+    btnSpinner.classList.remove('d-none');
+    loadingMessage.classList.remove('d-none');
+    resultsContainer.classList.add('d-none');
+    alertContainer.innerHTML = '';
+    
+    try {
+        const response = await fetch("{{ url_for('meetings.analyze') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ title, transcript })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || data.error) {
+            throw new Error(data.error || "An error occurred during analysis.");
+        }
+        
+        const res = data.result;
+        
+        // Populate Summary
+        document.getElementById('res-summary').innerText = res.detailed_summary || "—";
+        document.getElementById('res-score').innerText = res.productivity_score || "0";
+        document.getElementById('res-insights').innerText = res.manager_insights || "—";
+        
+        // Populate Highlights
+        const highlightsUl = document.getElementById('res-highlights');
+        highlightsUl.innerHTML = '';
+        (res.key_highlights || []).forEach(h => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerText = h;
+            highlightsUl.appendChild(li);
+        });
+        
+        // Populate Decisions
+        const decisionsUl = document.getElementById('res-decisions');
+        decisionsUl.innerHTML = '';
+        (res.decisions || []).forEach(d => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerText = d;
+            decisionsUl.appendChild(li);
+        });
+        
+        // Populate Action Items
+        const actionBody = document.getElementById('res-action-items');
+        actionBody.innerHTML = '';
+        const actionItems = res.action_items || [];
+        
+        if (actionItems.length === 0) {
+            document.getElementById('no-action-items').classList.remove('d-none');
+        } else {
+            document.getElementById('no-action-items').classList.add('d-none');
+            actionItems.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                
+                // Priority Badge logic
+                let badgeClass = 'bg-secondary';
+                const p = (item.priority || '').toLowerCase();
+                if (p.includes('high')) badgeClass = 'bg-danger';
+                else if (p.includes('medium')) badgeClass = 'bg-warning text-dark';
+                else if (p.includes('low')) badgeClass = 'bg-success';
+                
+                tr.innerHTML = `
+                    <td>${item.task || ''}</td>
+                    <td>${item.owner || 'Unassigned'}</td>
+                    <td><strong>${item.deadline || 'Not specified'}</strong></td>
+                    <td><span class="badge ${badgeClass} rounded-pill">${item.priority || 'Medium'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary add-task-btn" data-task="${escapeHtml(item.task || '')}" data-owner="${escapeHtml(item.owner || '')}" data-deadline="${escapeHtml(item.deadline || '')}" data-source="Meeting: ${escapeHtml(title)}">Add to Tasks</button>
+                    </td>
+                `;
+                actionBody.appendChild(tr);
+            });
+            
+            // Attach event listeners for Add to Tasks
+            document.querySelectorAll('.add-task-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const taskBtn = this;
+                    taskBtn.disabled = true;
+                    taskBtn.innerText = "Adding...";
+                    
+                    try {
+                        const tResp = await fetch("{{ url_for('meetings.add_task_route') }}", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                task: taskBtn.dataset.task,
+                                owner: taskBtn.dataset.owner,
+                                deadline: taskBtn.dataset.deadline,
+                                source: taskBtn.dataset.source
+                            })
+                        });
+                        if (tResp.ok) {
+                            taskBtn.innerText = "Added";
+                            taskBtn.classList.replace('btn-outline-primary', 'btn-success');
+                        } else {
+                            throw new Error("Failed to add task.");
+                        }
+                    } catch (e) {
+                        taskBtn.disabled = false;
+                        taskBtn.innerText = "Add to Tasks";
+                        alert("Error adding task.");
+                    }
+                });
+            });
+        }
+        
+        resultsContainer.classList.remove('d-none');
+        showAlert("Meeting analyzed successfully and saved to your dashboard!", "success");
+        
+    } catch (error) {
+        showAlert(error.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btnText.innerText = "Analyze Meeting";
+        btnSpinner.classList.add('d-none');
+        loadingMessage.classList.add('d-none');
+    }
+});
+
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+    <div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>`;
+    document.getElementById('alert-container').innerHTML = alertHtml;
+}
+</script>
+{% endblock %}

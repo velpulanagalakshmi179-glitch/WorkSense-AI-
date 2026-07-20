@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="color: var(--dark-navy); font-weight: 700;">🧠 Executive Dashboard - Welcome {{ user.name }}!</h2>
+        <p class="text-muted mb-0">High-level overview of team operations, risks, and productivity.</p>
+    </div>
+</div>
+
+<hr class="mb-4">
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">Meetings Processed</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ stats.total_meetings }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">Documents Uploaded</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ summary_stats.documents_processed }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">Emails Generated</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ emails_generated }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">Productivity Score</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ stats.productivity_average }}/100</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">High Risk Meetings</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ stats.high_risk_meetings }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body text-center">
+                <h6 class="text-muted text-uppercase fw-bold" style="letter-spacing: 0.05em; font-size: 0.85rem;">Pending Tasks</h6>
+                <h2 class="mb-0 fw-bold" style="color: var(--dark-navy);">{{ stats.pending_tasks }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="mb-4">
+
+<!-- Row 1: Activity & Deadlines -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <h4 style="color: var(--dark-navy); font-weight: 700;">🕒 Recent Activity Timeline</h4>
+        {% if activities %}
+            <ul class="list-group list-group-flush shadow-sm" style="border-radius: 18px; overflow: hidden; border: 1px solid var(--border-color);">
+                {% for act in activities %}
+                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <span class="fs-5 me-2">
+                            {% if act.action_type == 'Login Time' %}🔑
+                            {% elif act.action_type == 'Meeting Created' %}📅
+                            {% elif act.action_type == 'PDF Uploaded' %}📄
+                            {% elif act.action_type == 'Email Generated' %}✉️
+                            {% elif act.action_type == 'Report Downloaded' %}📥
+                            {% else %}⚪{% endif %}
+                        </span>
+                        <strong>{{ act.action_type }}</strong> - {{ act.description }}
+                    </div>
+                    <small class="text-muted">{{ act.created_at }}</small>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="alert alert-info border-0 shadow-sm" style="border-radius: 18px;">No recent activity found.</div>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <h4 style="color: var(--dark-navy); font-weight: 700;">⏰ Upcoming Deadlines</h4>
+        {% if deadlines %}
+            <ul class="list-group list-group-flush shadow-sm" style="border-radius: 18px; overflow: hidden; border: 1px solid var(--border-color);">
+                {% for d in deadlines %}
+                <li class="list-group-item py-3">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ d.title }}</strong>
+                        <span class="badge {% if d.priority == 'High' %}bg-danger{% elif d.priority == 'Medium' %}bg-warning{% else %}bg-success{% endif %} rounded-pill">
+                            {{ d.priority }}
+                        </span>
+                    </div>
+                    <div class="text-muted mt-1 small">
+                        Owner: {{ d.owner }} | Due: <strong>{{ d.deadline }}</strong>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="alert alert-info border-0 shadow-sm" style="border-radius: 18px;">No upcoming deadlines. Great job!</div>
+        {% endif %}
+    </div>
+</div>
+
+<hr class="mb-4">
+
+<!-- Executive Brief -->
+<div class="mb-5">
+    <h4 style="color: var(--dark-navy); font-weight: 700;">📋 Latest Executive Brief</h4>
+    {% if latest_brief %}
+        <div class="card shadow-sm border-0" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4">
+                <h5 class="card-title fw-bold">{{ latest_brief.title }}</h5>
+                <h6 class="card-subtitle mb-3 text-muted">Generated: {{ latest_brief.created_at }}</h6>
+                <div class="card-text" style="white-space: pre-wrap;">{{ latest_brief.content }}</div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info border-0 shadow-sm" style="border-radius: 18px;">No Executive Briefs generated yet. Analyze a meeting to create one automatically.</div>
+    {% endif %}
+</div>
+
+<hr class="mb-4">
+
+<!-- AI Manager Insights & Health Score -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 style="color: var(--dark-navy); font-weight: 700;">🤖 AI Executive Analysis</h4>
+        <form method="POST" action="{{ url_for('dashboard.analyze') }}">
+            <button type="submit" class="btn btn-primary">Generate Executive Analysis</button>
+        </form>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4">Manager Insights</h5>
+                    {% if insights %}
+                        <p><strong>Overall Productivity:</strong> {{ insights.get('overall_productivity') }}</p>
+                        <p><strong>Team Performance:</strong> {{ insights.get('team_performance') }}</p>
+                        <p><strong>High Priority Tasks:</strong> {{ insights.get('high_priority_tasks') }}</p>
+                        <p><strong>Recommendations:</strong> {{ insights.get('recommendations') }}</p>
+                    {% else %}
+                        <div class="alert alert-info border-0">Click 'Generate Executive Analysis' to compute AI insights.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+                <div class="card-body p-4 text-center">
+                    <h5 class="fw-bold mb-3">Meeting Health Score</h5>
+                    {% if health and health_plot_json %}
+                        <h6 class="text-muted mb-4">Overall Health Score: {{ health.get('overall_health_score', 0) }}/100</h6>
+                        <div id="health-chart" style="width: 100%; height: 300px;"></div>
+                        <script>
+                            var plot_data = {{ health_plot_json | safe }};
+                            Plotly.newPlot('health-chart', plot_data.data, plot_data.layout, {responsive: true, displayModeBar: false});
+                        </script>
+                    {% else %}
+                        <div class="alert alert-info border-0 text-start mt-4">Click 'Generate Executive Analysis' to plot Meeting Health.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

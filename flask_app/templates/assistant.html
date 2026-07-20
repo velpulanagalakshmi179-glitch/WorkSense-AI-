@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Include Marked.js for Markdown parsing -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    .chat-container {
+        height: 55vh;
+        overflow-y: auto;
+        padding: 20px;
+        background-color: var(--light-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .chat-bubble {
+        max-width: 80%;
+        padding: 12px 18px;
+        border-radius: 18px;
+        word-wrap: break-word;
+    }
+    .chat-user {
+        align-self: flex-end;
+        background-color: var(--primary-blue);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .chat-assistant {
+        align-self: flex-start;
+        background-color: var(--white-card);
+        color: #1E293B;
+        border: 1px solid var(--border-color);
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .chat-assistant p:last-child {
+        margin-bottom: 0;
+    }
+    .suggested-prompt {
+        border-radius: 50rem;
+        background-color: var(--white-card);
+        color: var(--dark-navy);
+        border: 1px solid var(--border-color);
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .suggested-prompt:hover {
+        background-color: var(--primary-blue);
+        color: white;
+        border-color: var(--primary-blue);
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="color: var(--dark-navy); font-weight: 700;">🤖 AI Workplace Assistant</h2>
+        <p class="text-muted mb-0">Ask questions across everything you've analyzed in meetings, documents, reports, and tasks.</p>
+    </div>
+    <button class="btn btn-outline-danger" id="clear-chat-btn">Clear Chat</button>
+</div>
+
+<!-- Suggested Prompts -->
+<div class="mb-3">
+    <h6 class="text-muted fw-bold">Suggested Questions</h6>
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn suggested-prompt btn-sm prompt-btn">Summarize my latest meeting.</button>
+        <button class="btn suggested-prompt btn-sm prompt-btn">Show pending tasks.</button>
+        <button class="btn suggested-prompt btn-sm prompt-btn">What are today's deadlines?</button>
+        <button class="btn suggested-prompt btn-sm prompt-btn">Generate a follow-up email.</button>
+        <button class="btn suggested-prompt btn-sm prompt-btn">Explain the uploaded document.</button>
+        <button class="btn suggested-prompt btn-sm prompt-btn">Show my productivity score.</button>
+    </div>
+</div>
+
+<!-- Chat Window -->
+<div class="chat-container" id="chat-window">
+    {% if not chat_history %}
+        <div class="text-center text-muted my-auto" id="empty-state">
+            <h1 class="display-1">🤖</h1>
+            <h5>How can I help you today?</h5>
+        </div>
+    {% endif %}
+    
+    {% for msg in chat_history %}
+        <div class="chat-bubble {% if msg.role == 'user' %}chat-user{% else %}chat-assistant{% endif %}">
+            {% if msg.role == 'assistant' %}
+                <div class="markdown-content">{{ msg.content }}</div>
+            {% else %}
+                {{ msg.content }}
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Typing Indicator (Hidden by default) -->
+<div id="typing-indicator" class="d-none mb-3">
+    <div class="chat-bubble chat-assistant text-muted fst-italic">
+        <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status"></div>
+        🤖 WorkSense AI is thinking...
+    </div>
+</div>
+
+<!-- Chat Input Form -->
+<form id="chat-form">
+    <div class="input-group input-group-lg shadow-sm" style="border-radius: 12px; overflow: hidden;">
+        <input type="text" id="chat-input" class="form-control border-0" placeholder="Ask a question..." autocomplete="off">
+        <button class="btn btn-primary px-4 fw-bold" type="submit" id="send-btn">Send</button>
+    </div>
+</form>
+
+<script>
+// Configure Marked to sanitize somewhat or just parse plain markdown
+marked.setOptions({
+  breaks: true,
+  gfm: true
+});
+
+function scrollToBottom() {
+    const chatWindow = document.getElementById('chat-window');
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// Initial render of server-side markdown blocks
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.markdown-content').forEach(el => {
+        const rawText = el.textContent || el.innerText;
+        el.innerHTML = marked.parse(rawText);
+    });
+    scrollToBottom();
+});
+
+function appendMessage(role, content) {
+    const chatWindow = document.getElementById('chat-window');
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) emptyState.remove();
+    
+    const div = document.createElement('div');
+    div.className = `chat-bubble ${role === 'user' ? 'chat-user' : 'chat-assistant'}`;
+    
+    if (role === 'assistant') {
+        div.innerHTML = marked.parse(content);
+    } else {
+        div.innerText = content;
+    }
+    
+    chatWindow.appendChild(div);
+    scrollToBottom();
+}
+
+async function sendPrompt(promptText) {
+    if (!promptText.trim()) return;
+    
+    // UI Updates
+    document.getElementById('chat-input').value = '';
+    appendMessage('user', promptText);
+    
+    const sendBtn = document.getElementById('send-btn');
+    const input = document.getElementById('chat-input');
+    const indicator = document.getElementById('typing-indicator');
+    
+    sendBtn.disabled = true;
+    input.disabled = true;
+    indicator.classList.remove('d-none');
+    scrollToBottom();
+    
+    try {
+        const response = await fetch("{{ url_for('assistant.ask') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: promptText })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || data.error) {
+            throw new Error(data.error || "Failed to get response.");
+        }
+        
+        appendMessage('assistant', data.answer);
+        
+    } catch (e) {
+        appendMessage('assistant', `⚠️ Error: ${e.message}`);
+    } finally {
+        indicator.classList.add('d-none');
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+    }
+}
+
+// Event Listeners
+document.getElementById('chat-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = document.getElementById('chat-input').value;
+    sendPrompt(val);
+});
+
+document.querySelectorAll('.prompt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        sendPrompt(btn.innerText);
+    });
+});
+
+document.getElementById('clear-chat-btn').addEventListener('click', async () => {
+    if(!confirm("Are you sure you want to clear the chat history?")) return;
+    
+    try {
+        const response = await fetch("{{ url_for('assistant.clear') }}", { method: "POST" });
+        if (response.ok) {
+            window.location.reload();
+        }
+    } catch (e) {
+        alert("Failed to clear chat.");
+    }
+});
+</script>
+{% endblock %}

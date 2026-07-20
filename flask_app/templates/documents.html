@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">📄 Document Intelligence</h2>
+    <p class="text-muted">Upload a document to get a summary, key insights, and ask it questions.</p>
+</div>
+
+<div id="alert-container"></div>
+
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4">
+        <form id="upload-form">
+            <div class="mb-3">
+                <label for="doc_file" class="form-label fw-bold">Upload PDF, DOCX, or TXT</label>
+                <input class="form-control form-control-lg" type="file" id="doc_file" accept=".pdf,.docx,.txt" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg" id="upload-btn">
+                <span id="upload-btn-text">Extract Text</span>
+                <span id="upload-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- State Container -->
+<div id="doc-workspace" class="d-none">
+    <div class="alert alert-success border-0 shadow-sm mb-4" style="border-radius: 12px;" id="loaded-info"></div>
+    
+    <div class="text-center mb-4">
+        <button id="summarize-btn" class="btn btn-primary btn-lg">
+            <span id="sum-btn-text">Summarize Document</span>
+            <span id="sum-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+    </div>
+
+    <!-- Summary Results -->
+    <div id="summary-container" class="d-none mb-4">
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body p-4">
+                <h4 class="fw-bold mb-3">Summary</h4>
+                <p id="res-summary" style="white-space: pre-wrap;"></p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 18px;">
+            <div class="card-body p-4">
+                <h4 class="fw-bold mb-3">Key Insights</h4>
+                <ul id="res-insights" class="list-group list-group-flush"></ul>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+    
+    <!-- Ask Question Section -->
+    <div class="card shadow-sm border-0" style="border-radius: 18px;">
+        <div class="card-body p-4">
+            <h4 class="fw-bold mb-3">Ask a Question</h4>
+            <form id="qa-form">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control form-control-lg" id="question_input" placeholder="e.g. What are the key deliverables?" required>
+                    <button class="btn btn-primary px-4" type="submit" id="qa-btn">
+                        <span id="qa-btn-text">Ask</span>
+                        <span id="qa-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </form>
+            <div id="qa-result" class="mt-3 p-3 bg-light rounded d-none" style="border-left: 4px solid var(--primary-blue);">
+                <strong style="color: var(--dark-navy);">Answer:</strong>
+                <span id="qa-answer" class="ms-2"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentText = "";
+let currentFilename = "";
+
+function showAlert(message, type) {
+    const alertHtml = `
+    <div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>`;
+    document.getElementById('alert-container').innerHTML = alertHtml;
+}
+
+// Upload Form
+document.getElementById('upload-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('doc_file');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('upload-btn');
+    const btnText = document.getElementById('upload-btn-text');
+    const btnSpinner = document.getElementById('upload-btn-spinner');
+    
+    btn.disabled = true;
+    btnText.innerText = "Extracting...";
+    btnSpinner.classList.remove('d-none');
+    document.getElementById('alert-container').innerHTML = '';
+    
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const response = await fetch("{{ url_for('documents.upload') }}", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (!response.ok || data.error) throw new Error(data.error || "Failed to upload.");
+        
+        currentText = data.text;
+        currentFilename = data.filename;
+        
+        document.getElementById('loaded-info').innerText = `Loaded: ${data.filename} (${data.length.toLocaleString()} characters)`;
+        document.getElementById('doc-workspace').classList.remove('d-none');
+        document.getElementById('summary-container').classList.add('d-none');
+        
+    } catch (err) {
+        showAlert(err.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btnText.innerText = "Extract Text";
+        btnSpinner.classList.add('d-none');
+    }
+});
+
+// Summarize Button
+document.getElementById('summarize-btn').addEventListener('click', async function() {
+    if (!currentText) return;
+    
+    const btn = document.getElementById('summarize-btn');
+    const btnText = document.getElementById('sum-btn-text');
+    const btnSpinner = document.getElementById('sum-btn-spinner');
+    
+    btn.disabled = true;
+    btnText.innerText = "Summarizing...";
+    btnSpinner.classList.remove('d-none');
+    
+    try {
+        const response = await fetch("{{ url_for('documents.summarize') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: currentText, filename: currentFilename })
+        });
+        const data = await response.json();
+        
+        if (!response.ok || data.error) throw new Error(data.error || "Failed to summarize.");
+        
+        document.getElementById('res-summary').innerText = data.result.summary || "—";
+        
+        const insightsUl = document.getElementById('res-insights');
+        insightsUl.innerHTML = '';
+        (data.result.key_insights || []).forEach(insight => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerText = insight;
+            insightsUl.appendChild(li);
+        });
+        
+        document.getElementById('summary-container').classList.remove('d-none');
+        
+    } catch (err) {
+        showAlert(err.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btnText.innerText = "Summarize Document";
+        btnSpinner.classList.add('d-none');
+    }
+});
+
+// QA Form
+document.getElementById('qa-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!currentText) return;
+    
+    const question = document.getElementById('question_input').value;
+    const btn = document.getElementById('qa-btn');
+    const btnText = document.getElementById('qa-btn-text');
+    const btnSpinner = document.getElementById('qa-btn-spinner');
+    
+    btn.disabled = true;
+    btnText.innerText = "Thinking...";
+    btnSpinner.classList.remove('d-none');
+    document.getElementById('qa-result').classList.add('d-none');
+    
+    try {
+        const response = await fetch("{{ url_for('documents.qa') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: currentText, question: question })
+        });
+        const data = await response.json();
+        
+        if (!response.ok || data.error) throw new Error(data.error || "Failed to answer.");
+        
+        document.getElementById('qa-answer').innerText = data.answer;
+        document.getElementById('qa-result').classList.remove('d-none');
+        
+    } catch (err) {
+        showAlert(err.message, "danger");
+    } finally {
+        btn.disabled = false;
+        btnText.innerText = "Ask";
+        btnSpinner.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}
