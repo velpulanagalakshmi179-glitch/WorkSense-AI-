@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">📊 Analytics Dashboard</h2>
+    <p class="text-muted mb-0">Visual insights into your team's meetings, tasks, and productivity trends.</p>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4 text-center">
+                <h5 class="fw-bold mb-4" style="color: var(--dark-navy);">Productivity Trend</h5>
+                {% if fig_prod_json %}
+                    <div id="prod-chart" style="width: 100%; height: 350px;"></div>
+                    <script>
+                        var prodData = {{ fig_prod_json | safe }};
+                        Plotly.newPlot('prod-chart', prodData.data, prodData.layout, {responsive: true, displayModeBar: false});
+                    </script>
+                {% else %}
+                    <div class="alert alert-info border-0 rounded-3">No productivity history found. Generate scores to see trends.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4 text-center">
+                <h5 class="fw-bold mb-4" style="color: var(--dark-navy);">Meeting Volume</h5>
+                {% if fig_meet_json %}
+                    <div id="meet-chart" style="width: 100%; height: 350px;"></div>
+                    <script>
+                        var meetData = {{ fig_meet_json | safe }};
+                        Plotly.newPlot('meet-chart', meetData.data, meetData.layout, {responsive: true, displayModeBar: false});
+                    </script>
+                {% else %}
+                    <div class="alert alert-info border-0 rounded-3">No meetings processed yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4 text-center">
+                <h5 class="fw-bold mb-4" style="color: var(--dark-navy);">Task Completion</h5>
+                {% if fig_task_json %}
+                    <div id="task-chart" style="width: 100%; height: 350px;"></div>
+                    <script>
+                        var taskData = {{ fig_task_json | safe }};
+                        Plotly.newPlot('task-chart', taskData.data, taskData.layout, {responsive: true, displayModeBar: false});
+                    </script>
+                {% else %}
+                    <div class="alert alert-info border-0 rounded-3">No tasks available to visualize.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4 text-center">
+                <h5 class="fw-bold mb-4" style="color: var(--dark-navy);">Risk Distribution</h5>
+                {% if fig_risk_json %}
+                    <div id="risk-chart" style="width: 100%; height: 350px;"></div>
+                    <script>
+                        var riskData = {{ fig_risk_json | safe }};
+                        Plotly.newPlot('risk-chart', riskData.data, riskData.layout, {responsive: true, displayModeBar: false});
+                    </script>
+                {% else %}
+                    <div class="alert alert-info border-0 rounded-3">No risks have been flagged.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

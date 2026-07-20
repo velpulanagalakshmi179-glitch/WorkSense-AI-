@@ -23,6 +23,15 @@ def create_app():
     from .blueprints.reports import reports_bp
     from .blueprints.email import email_bp
 
+    from .blueprints.analytics import analytics_bp
+    from .blueprints.profile import profile_bp
+    from .blueprints.risk import risk_bp
+    from .blueprints.tasks import tasks_bp
+    from .blueprints.insights import insights_bp
+    from .blueprints.weekly import weekly_bp
+    from .blueprints.about import about_bp
+    from .blueprints.executive import executive_bp
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(meetings_bp)
@@ -30,6 +39,14 @@ def create_app():
     app.register_blueprint(assistant_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(email_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(profile_bp)
+    app.register_blueprint(risk_bp)
+    app.register_blueprint(tasks_bp)
+    app.register_blueprint(insights_bp)
+    app.register_blueprint(weekly_bp)
+    app.register_blueprint(about_bp)
+    app.register_blueprint(executive_bp)
 
     @app.route('/')
     def index():

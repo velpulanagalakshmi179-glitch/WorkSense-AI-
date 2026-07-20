@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="color: var(--dark-navy); font-weight: 700;">🧑‍💼 Manager Insights</h2>
+        <p class="text-muted mb-0">Rolls up tasks and risk flags into an executive summary for a manager audience.</p>
+    </div>
+    <button id="generate-btn" class="btn btn-primary btn-lg">
+        <span id="generate-text">Generate Executive Summary</span>
+        <span id="generate-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+    </button>
+</div>
+
+<div id="alert-container"></div>
+
+<div id="result-card" class="card shadow-sm border-0 d-none" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+    <div class="card-body p-4">
+        <div id="summary-content" class="mb-4" style="line-height: 1.7;"></div>
+        
+        <div class="d-flex gap-2">
+            <form action="{{ url_for('insights.download_pdf') }}" method="POST" id="form-pdf">
+                <input type="hidden" name="content" id="pdf-content">
+                <button type="submit" class="btn btn-outline-danger">📑 Download PDF</button>
+            </form>
+            <form action="{{ url_for('insights.download_txt') }}" method="POST" id="form-txt">
+                <input type="hidden" name="content" id="txt-content">
+                <button type="submit" class="btn btn-outline-secondary">📄 Download TXT</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="empty-state" class="card shadow-sm border-0" style="border-radius: 18px; background-color: var(--light-bg); display: flex; align-items: center; justify-content: center;">
+    <div class="text-center text-muted p-5">
+        <h1 class="display-3 mb-3">📈</h1>
+        <h5>Click 'Generate Executive Summary' to analyze your data.</h5>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.getElementById('generate-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('generate-btn');
+    btn.disabled = true;
+    document.getElementById('generate-text').innerText = 'Generating...';
+    document.getElementById('generate-spinner').classList.remove('d-none');
+    
+    document.getElementById('alert-container').innerHTML = '';
+    
+    try {
+        const response = await fetch("{{ url_for('insights.generate_insights') }}", {
+            method: "POST"
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            document.getElementById('empty-state').classList.add('d-none');
+            document.getElementById('result-card').classList.remove('d-none');
+            
+            document.getElementById('summary-content').innerHTML = marked.parse(data.summary);
+            document.getElementById('pdf-content').value = data.summary;
+            document.getElementById('txt-content').value = data.summary;
+            
+        } else {
+            const html = `
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+              ${data.error || 'Failed to generate summary.'}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            document.getElementById('alert-container').innerHTML = html;
+        }
+    } catch (e) {
+        const html = `
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+          ${e.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>`;
+        document.getElementById('alert-container').innerHTML = html;
+    } finally {
+        btn.disabled = false;
+        document.getElementById('generate-text').innerText = 'Generate Executive Summary';
+        document.getElementById('generate-spinner').classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}

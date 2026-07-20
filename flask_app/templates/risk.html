@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="color: var(--dark-navy); font-weight: 700;">⚠️ AI Risk Center</h2>
+        <p class="text-muted mb-0">Scans current task data for missing deadlines, unassigned tasks, high-risk work, and communication gaps.</p>
+    </div>
+    <button id="scan-btn" class="btn btn-primary btn-lg">
+        <span id="scan-text">Run Risk Scan</span>
+        <span id="scan-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+    </button>
+</div>
+
+<div id="alert-container"></div>
+
+<div class="card shadow-sm border-0" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4">
+        {% if not flags %}
+            <div class="text-center text-muted py-5">
+                <h1 class="display-4 mb-3">🛡️</h1>
+                <h5>No risks flagged yet. Run a scan above.</h5>
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" style="border-radius: 12px 0 0 0;">Severity</th>
+                            <th scope="col">Risk Type</th>
+                            <th scope="col" style="border-radius: 0 12px 0 0;">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for flag in flags %}
+                        <tr>
+                            <td>
+                                {% if flag.severity == 'High' %}
+                                    <span class="badge bg-danger rounded-pill px-3 py-2">🔴 High</span>
+                                {% elif flag.severity == 'Medium' %}
+                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2">🟠 Medium</span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark rounded-pill px-3 py-2">🟡 Low</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold" style="color: var(--dark-navy);">{{ flag.risk_type }}</td>
+                            <td class="text-muted">{{ flag.description }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('scan-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('scan-btn');
+    btn.disabled = true;
+    document.getElementById('scan-text').innerText = 'Scanning for risks...';
+    document.getElementById('scan-spinner').classList.remove('d-none');
+    
+    document.getElementById('alert-container').innerHTML = '';
+    
+    try {
+        const response = await fetch("{{ url_for('risk.scan_risks') }}", {
+            method: "POST"
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            window.location.reload();
+        } else {
+            const html = `
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+              ${data.error || 'Failed to run risk scan.'}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            document.getElementById('alert-container').innerHTML = html;
+        }
+    } catch (e) {
+        const html = `
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+          ${e.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>`;
+        document.getElementById('alert-container').innerHTML = html;
+    } finally {
+        btn.disabled = false;
+        document.getElementById('scan-text').innerText = 'Run Risk Scan';
+        document.getElementById('scan-spinner').classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}

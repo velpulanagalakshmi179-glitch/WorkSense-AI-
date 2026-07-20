@@ -115,7 +115,16 @@
         <a href="{{ url_for('meetings.index') }}">Meeting Intelligence</a>
         <a href="{{ url_for('documents.index') }}">Document Intelligence</a>
         <a href="{{ url_for('assistant.index') }}">AI Assistant</a>
+        <a href="{{ url_for('email.index') }}">Email Automation</a>
         <a href="{{ url_for('reports.index') }}">Reports & Meeting History</a>
+        <a href="{{ url_for('analytics.index') }}">Analytics Dashboard</a>
+        <a href="{{ url_for('tasks.index') }}">Smart Task Manager</a>
+        <a href="{{ url_for('risk.index') }}">AI Risk Center</a>
+        <a href="{{ url_for('insights.index') }}">Manager Insights</a>
+        <a href="{{ url_for('weekly.index') }}">Weekly Progress Report</a>
+        <a href="{{ url_for('executive.index') }}">Executive Briefs</a>
+        <a href="{{ url_for('profile.index') }}">Profile & Settings</a>
+        <a href="{{ url_for('about.index') }}">About</a>
         
         <div style="flex-grow: 1;"></div>
         <a href="{{ url_for('auth.logout') }}" style="color: #F87171;">Logout</a>
@@ -151,10 +160,7 @@
               {% endif %}
             {% endwith %}
             
-            {% block auth_content %}
-                <!-- Fallback to content block for auth templates -->
-                {% block content %}{% endblock %}
-            {% endblock %}
+            {{ self.content() }}
         </div>
     </div>
 {% endif %}

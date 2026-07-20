@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">✉️ Email Automation</h2>
+    <p class="text-muted mb-0">Generate professional, follow-up, reminder, and appreciation emails.</p>
+</div>
+
+<div id="alert-container"></div>
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+            <div class="card-body p-4">
+                <form id="email-form">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email Type</label>
+                        <select class="form-select" id="email_type">
+                            {% for type in email_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Recipient (Optional)</label>
+                        <input type="text" class="form-control" id="recipient" placeholder="e.g. Priya, Engineering Team">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tone</label>
+                        <select class="form-select" id="tone">
+                            <option value="Neutral">Neutral</option>
+                            <option value="Formal">Formal</option>
+                            <option value="Friendly">Friendly</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Context</label>
+                        <textarea class="form-control" id="context" rows="4" placeholder="e.g. Remind the design team the wireframes are due Friday." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 btn-lg" id="generate-btn">
+                        <span id="btn-text">Generate Email</span>
+                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <!-- Loading State -->
+        <div id="loading-state" class="d-none text-center py-5 h-100 d-flex flex-column justify-content-center align-items-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h5 style="color: var(--dark-navy);">Generating Professional Email...</h5>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="card shadow-sm border-0 h-100" style="border-radius: 18px; background-color: var(--light-bg); display: flex; align-items: center; justify-content: center;">
+            <div class="text-center text-muted p-5">
+                <h1 class="display-3 mb-3">✉️</h1>
+                <h5>Your AI-generated email will appear here.</h5>
+            </div>
+        </div>
+        
+        <!-- Result State -->
+        <div id="result-state" class="card shadow-sm border-0 h-100 d-none" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+            <div class="card-body p-4 d-flex flex-column">
+                <h5 class="fw-bold mb-3" style="color: var(--dark-navy);">Draft Email</h5>
+                <textarea id="email-output" class="form-control mb-4 flex-grow-1" style="font-family: monospace; resize: none;"></textarea>
+                
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" id="copy-btn">📋 Copy to Clipboard</button>
+                    
+                    <form action="{{ url_for('email.download_txt') }}" method="POST" class="d-inline" id="download-txt-form">
+                        <input type="hidden" name="email_content" id="txt-content">
+                        <button type="submit" class="btn btn-outline-secondary">📄 Download TXT</button>
+                    </form>
+                    
+                    <form action="{{ url_for('email.download_pdf') }}" method="POST" class="d-inline" id="download-pdf-form">
+                        <input type="hidden" name="email_content" id="pdf-content">
+                        <button type="submit" class="btn btn-outline-danger">📑 Download PDF</button>
+                    </form>
+                    
+                    <div style="flex-grow: 1;"></div>
+                    <button class="btn btn-primary" id="regenerate-btn">🔄 Regenerate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAlert(message, type) {
+    const html = `
+    <div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>`;
+    document.getElementById('alert-container').innerHTML = html;
+}
+
+async function triggerGenerate() {
+    const email_type = document.getElementById('email_type').value;
+    const recipient = document.getElementById('recipient').value;
+    const tone = document.getElementById('tone').value;
+    const context = document.getElementById('context').value;
+    
+    if(!context.trim()) {
+        showAlert("Add some context first.", "warning");
+        return;
+    }
+    
+    // UI Loading
+    document.getElementById('alert-container').innerHTML = '';
+    const btn = document.getElementById('generate-btn');
+    btn.disabled = true;
+    document.getElementById('btn-text').innerText = 'Drafting...';
+    document.getElementById('btn-spinner').classList.remove('d-none');
+    
+    document.getElementById('empty-state').classList.add('d-none');
+    document.getElementById('result-state').classList.add('d-none');
+    document.getElementById('loading-state').classList.remove('d-none');
+    
+    try {
+        const response = await fetch("{{ url_for('email.generate_email') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email_type, recipient, tone, context })
+        });
+        
+        const data = await response.json();
+        if(!response.ok || data.error) throw new Error(data.error || "Failed to generate.");
+        
+        // Show result
+        const output = document.getElementById('email-output');
+        output.value = data.email;
+        
+        // Sync forms for download
+        document.getElementById('txt-content').value = data.email;
+        document.getElementById('pdf-content').value = data.email;
+        
+        document.getElementById('loading-state').classList.add('d-none');
+        document.getElementById('result-state').classList.remove('d-none');
+        
+    } catch (e) {
+        document.getElementById('loading-state').classList.add('d-none');
+        document.getElementById('empty-state').classList.remove('d-none');
+        showAlert(e.message, "danger");
+    } finally {
+        btn.disabled = false;
+        document.getElementById('btn-text').innerText = 'Generate Email';
+        document.getElementById('btn-spinner').classList.add('d-none');
+    }
+}
+
+document.getElementById('email-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    triggerGenerate();
+});
+
+document.getElementById('regenerate-btn').addEventListener('click', () => {
+    triggerGenerate();
+});
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+    const output = document.getElementById('email-output');
+    output.select();
+    document.execCommand("copy");
+    
+    const copyBtn = document.getElementById('copy-btn');
+    const originalText = copyBtn.innerText;
+    copyBtn.innerText = "✅ Copied!";
+    setTimeout(() => { copyBtn.innerText = originalText; }, 2000);
+});
+
+// Update download forms when user manually edits the textarea
+document.getElementById('email-output').addEventListener('input', (e) => {
+    const val = e.target.value;
+    document.getElementById('txt-content').value = val;
+    document.getElementById('pdf-content').value = val;
+});
+</script>
+{% endblock %}

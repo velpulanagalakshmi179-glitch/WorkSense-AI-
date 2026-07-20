@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="color: var(--dark-navy); font-weight: 700;">📈 Weekly Progress Report</h2>
+        <p class="text-muted mb-0">Analyzes task history and productivity metrics to generate a weekly summary.</p>
+    </div>
+    <button id="generate-btn" class="btn btn-primary btn-lg" {% if not has_tasks %}disabled{% endif %}>
+        <span id="generate-text">Generate Weekly Report</span>
+        <span id="generate-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+    </button>
+</div>
+
+<div id="alert-container"></div>
+
+{% if not has_tasks %}
+    <div class="alert alert-info shadow-sm" style="border-radius: 12px;">
+        <i class="bi bi-info-circle me-2"></i> Add tasks in the Task Manager and run Productivity Analytics at least once before generating a report.
+    </div>
+{% else %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border-left: 4px solid var(--primary-blue) !important;">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Completed Tasks</h6>
+                    <h2 class="display-5 fw-bold text-dark mb-0">{{ counts.completed }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border-left: 4px solid #f39c12 !important;">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Pending Tasks</h6>
+                    <h2 class="display-5 fw-bold text-dark mb-0">{{ counts.pending }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 18px; border-left: 4px solid #34495e !important;">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Tasks</h6>
+                    <h2 class="display-5 fw-bold text-dark mb-0">{{ counts.total }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if chart_json %}
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 18px;">
+            <div class="card-body p-4">
+                <div id="plotly-chart" style="height: 350px;"></div>
+            </div>
+        </div>
+        <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+        <script>
+            var chartData = {{ chart_json | safe }};
+            Plotly.newPlot('plotly-chart', chartData.data, chartData.layout, {responsive: true});
+        </script>
+    {% endif %}
+{% endif %}
+
+<div id="result-card" class="card shadow-sm border-0 d-none" style="border-radius: 18px; border-top: 4px solid var(--primary-blue) !important;">
+    <div class="card-body p-4">
+        <div id="report-content" class="mb-4" style="line-height: 1.7;"></div>
+        
+        <div class="d-flex gap-2">
+            <form action="{{ url_for('weekly.download_pdf') }}" method="POST" id="form-pdf">
+                <input type="hidden" name="content" id="pdf-content">
+                <button type="submit" class="btn btn-outline-danger">📑 Download PDF</button>
+            </form>
+            <form action="{{ url_for('weekly.download_txt') }}" method="POST" id="form-txt">
+                <input type="hidden" name="content" id="txt-content">
+                <button type="submit" class="btn btn-outline-secondary">📄 Download TXT</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const btn = document.getElementById('generate-btn');
+if(btn) {
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        document.getElementById('generate-text').innerText = 'Writing report...';
+        document.getElementById('generate-spinner').classList.remove('d-none');
+        
+        document.getElementById('alert-container').innerHTML = '';
+        
+        try {
+            const response = await fetch("{{ url_for('weekly.generate_report') }}", {
+                method: "POST"
+            });
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                document.getElementById('result-card').classList.remove('d-none');
+                document.getElementById('report-content').innerHTML = marked.parse(data.report);
+                document.getElementById('pdf-content').value = data.report;
+                document.getElementById('txt-content').value = data.report;
+            } else {
+                const html = `
+                <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+                  ${data.error || 'Failed to generate report.'}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+                document.getElementById('alert-container').innerHTML = html;
+            }
+        } catch (e) {
+            const html = `
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px;">
+              ${e.message}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            document.getElementById('alert-container').innerHTML = html;
+        } finally {
+            btn.disabled = false;
+            document.getElementById('generate-text').innerText = 'Generate Weekly Report';
+            document.getElementById('generate-spinner').classList.add('d-none');
+        }
+    });
+}
+</script>
+{% endblock %}

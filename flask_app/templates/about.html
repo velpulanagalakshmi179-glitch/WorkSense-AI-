@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">ℹ️ About WorkSense AI</h2>
+</div>
+
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4" style="line-height: 1.7; font-size: 1.05rem;">
+        <p><strong>WorkSense AI</strong> is an Enterprise SaaS-style workplace intelligence assistant. It turns unstructured meeting and document content into summaries, action items, risk flags, and reports.</p>
+        
+        <h4 class="mt-4 mb-3" style="color: var(--dark-navy);">Architecture</h4>
+        <p>Flask & Bootstrap (UI) &rarr; Python business logic (<code>utils/</code>) &rarr; Groq API (<code>groq_client.py</code>) &rarr; SQLite (<code>worksense.db</code>, persistence) &rarr; ReportLab / plain text (Export Module)</p>
+        
+        <h4 class="mt-4 mb-3" style="color: var(--dark-navy);">Honest scope notes</h4>
+        <ul>
+            <li class="mb-2">Built originally on Streamlit, now fully migrated to a robust Flask architecture with proper <code>Flask-Session</code> multi-user auth and horizontal scaling capabilities.</li>
+            <li class="mb-2">Productivity scores and risk flags are Groq's read of whatever task data currently exists in this session's database &mdash; they're only as good as the tasks you've entered.</li>
+            <li class="mb-2">Long documents are summarized from their first chunk only; full map-reduce summarization for very large files is a next step, not yet implemented.</li>
+        </ul>
+        
+        <h4 class="mt-4 mb-3" style="color: var(--dark-navy);">Tech Stack</h4>
+        <div class="d-flex flex-wrap gap-2">
+            <span class="badge bg-light text-dark border px-3 py-2">Python</span>
+            <span class="badge bg-light text-dark border px-3 py-2">Flask</span>
+            <span class="badge bg-light text-dark border px-3 py-2">Bootstrap 5</span>
+            <span class="badge bg-light text-dark border px-3 py-2">Groq API</span>
+            <span class="badge bg-light text-dark border px-3 py-2">SQLite</span>
+            <span class="badge bg-light text-dark border px-3 py-2">Pandas</span>
+            <span class="badge bg-light text-dark border px-3 py-2">PyPDF2</span>
+            <span class="badge bg-light text-dark border px-3 py-2">python-docx</span>
+            <span class="badge bg-light text-dark border px-3 py-2">ReportLab</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

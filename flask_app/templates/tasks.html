@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 style="color: var(--dark-navy); font-weight: 700;">✅ Smart Task Manager</h2>
+    <p class="text-muted mb-0">Manage tasks and use AI to classify priority.</p>
+</div>
+
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4">
+        <form id="add-task-form" class="row g-3">
+            <div class="col-md-5">
+                <input type="text" class="form-control" id="task_title" placeholder="Task Title" required>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="task_owner" placeholder="Owner (optional)">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="task_deadline" placeholder="Deadline (optional)">
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Add Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0" style="border-radius: 18px; border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4">
+        {% if not tasks %}
+            <div class="text-center text-muted py-4">
+                <h3 class="mb-3">📋</h3>
+                <p>No tasks yet.</p>
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Task</th>
+                            <th>Owner</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tasks %}
+                        <tr>
+                            <td class="fw-bold" style="color: var(--dark-navy);">{{ t.title }}</td>
+                            <td>{{ t.owner or 'Unassigned' }}</td>
+                            <td>
+                                {% if t.priority in (None, 'Medium') %}
+                                    <span id="priority_{{ t.id }}">{{ t.priority or 'Medium' }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="classifyTask({{ t.id }}, '{{ t.title }}')" id="btn_classify_{{ t.id }}">Classify</button>
+                                {% else %}
+                                    {{ t.priority }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" onchange="updateStatus({{ t.id }}, this.value)">
+                                    <option value="Pending" {% if t.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                    <option value="In Progress" {% if t.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if t.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTask({{ t.id }})">🗑️</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('add-task-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('task_title').value;
+    const owner = document.getElementById('task_owner').value;
+    const deadline = document.getElementById('task_deadline').value;
+    
+    try {
+        const response = await fetch("{{ url_for('tasks.add') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, owner, deadline })
+        });
+        if (response.ok) {
+            window.location.reload();
+        }
+    } catch (e) {
+        alert("Error adding task.");
+    }
+});
+
+async function updateStatus(task_id, status) {
+    try {
+        await fetch("{{ url_for('tasks.update_status') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_id, status })
+        });
+    } catch (e) {
+        alert("Error updating status.");
+    }
+}
+
+async function deleteTask(task_id) {
+    if(!confirm("Delete this task?")) return;
+    try {
+        const response = await fetch("{{ url_for('tasks.delete') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_id })
+        });
+        if (response.ok) {
+            window.location.reload();
+        }
+    } catch (e) {
+        alert("Error deleting task.");
+    }
+}
+
+async function classifyTask(task_id, title) {
+    const btn = document.getElementById(`btn_classify_${task_id}`);
+    btn.disabled = true;
+    btn.innerText = "...";
+    
+    try {
+        const response = await fetch("{{ url_for('tasks.classify') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            document.getElementById(`priority_${task_id}`).innerText = data.priority;
+            btn.style.display = 'none';
+        } else {
+            btn.innerText = "Error";
+        }
+    } catch (e) {
+        btn.innerText = "Error";
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
